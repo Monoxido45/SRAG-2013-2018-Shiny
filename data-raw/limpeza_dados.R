@@ -10,10 +10,9 @@ urls <- map_chr(13:18,
 # percorrendo e baixando dados do vetor de URLS
 dados_SRAG <- urls |>
   map(read_delim, delim = ";", escape_double = FALSE, trim_ws = TRUE) |>
-  plyr::ldply() 
-
-
-dados_SRAG <- dados_SRAG |>
+  plyr::ldply() |>
+  # jogando fora algumas variaveis
+  # tirando variaveis com mts NA's
   select(-c(SRAG2012FINAL,
             SRAG2013FINAL, 
             SRAG2014FINAL, 
@@ -30,4 +29,30 @@ dados_SRAG <- dados_SRAG |>
   janitor::remove_empty(which = "cols") |>
   purrr::discard(~sum(is.na(.x))/length(.x)* 100 >= 80)
 
+# cruzando com as bases do IBGE para obter o nome dos municipios e plotar tudo no leaflet
+# base do IBGE
+ibge_muni <- "data-raw/DTB_2021/RELATORIO_DTB_BRASIL_MUNICIPIO.ods" |>
+  readODS::read_ods()
+
+# substituindo NA por 9 e outras coisas
+troca_NA <- function(doenca){
+  ifelse(is.na(doenca), 9, doenca)
+}
+
+dados_SRAG <- dados_SRAG |>
+  mutate(across(c(CS_GESTANT:OUTRO_SIN, CARDIOPATI:OUT_MORBI), troca_NA),
+         across(c(CS_GESTANT:OUTRO_SIN, CARDIOPATI:OUT_MORBI), as.character))
+
+# dando join para extrair nome de municipios, UF e mesorregiao
+dados_SRAG <- dados_SRAG |> left_join(ibge_muni |> select(Nome_UF,"Mesorregião Geográfica",
+                                                          "Nome_Mesorregião",
+                                                          "Região Geográfica Imediata",
+                                                          "Nome Região Geográfica Imediata") |>
+                                        rename("ID_MUNICIP" = "Região Geográfica Imediata"),
+                                      by = "ID_MUNICIP")
+
+
+
 dados_SRAG |> write_rds("analise/dados_SRAG.rds")
+
+
