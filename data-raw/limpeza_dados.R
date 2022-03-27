@@ -45,12 +45,15 @@ dados_SRAG <- dados_SRAG |>
 
 # dando join para extrair nome de municipios, UF e mesorregiao
 dados_SRAG <- dados_SRAG |> left_join(ibge_muni |> select(Nome_UF,"Mesorregião Geográfica",
-                                                          "Nome_Mesorregião",
-                                                          "Região Geográfica Imediata",
-                                                          "Nome Região Geográfica Imediata") |>
-                                        rename("ID_MUNICIP" = "Região Geográfica Imediata"),
+                                                        "Nome_Mesorregião",
+                                                        "Região Geográfica Imediata",
+                                                        "Nome Região Geográfica Imediata",
+                                                        "Código Município Completo",
+                                                        "Nome_Município") |>
+                                      rename("ID_MUNICIP" = "Código Município Completo") |>
+                                      mutate(ID_MUNICIP = ID_MUNICIP |> as.character() |> 
+                                               substring(1, 6) |> as.numeric()),
                                       by = "ID_MUNICIP")
-
 
 
 dados_SRAG |> write_rds("analise/dados_SRAG.rds")
