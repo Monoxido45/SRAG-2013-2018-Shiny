@@ -43,6 +43,13 @@ dados_SRAG <- dados_SRAG |>
   mutate(across(c(CS_GESTANT:OUTRO_SIN, CARDIOPATI:OUT_MORBI), troca_NA),
          across(c(CS_GESTANT:OUTRO_SIN, CARDIOPATI:OUT_MORBI), as.character))
 
+
+### Para rodar o app_teste1.R
+dados_SRAG <- dados_SRAG |>
+  mutate(across(c(CLASSI_FIN,CRITERIO,EVOLUCAO), troca_NA),
+         across(c(CLASSI_FIN,CRITERIO,EVOLUCAO), as.character))
+
+
 # dando join para extrair nome de municipios, UF e mesorregiao
 dados_SRAG <- dados_SRAG |> left_join(ibge_muni |> select(Nome_UF,"Mesorregião Geográfica",
                                                         "Nome_Mesorregião",
