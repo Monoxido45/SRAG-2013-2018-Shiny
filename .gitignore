@@ -3,3 +3,6 @@
 .RData
 .Ruserdata
 analise/dados_SRAG.rds
+analise/pop_State.rds
+analise/pop_Region.rds
+analise/pop_MesoRegion.rds
