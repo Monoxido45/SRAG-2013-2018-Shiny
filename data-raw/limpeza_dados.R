@@ -1,11 +1,16 @@
 # importando e ajeitando os dados por aqui e salvando em rds
 library(tidyverse)
+if(!require(chron)){install.packages("chron")}
+library(chron)
+
+#remotes::install_github("abjur/abjData")
 
 # urls para baixar
 urls <- map_chr(13:18, 
                 function(x){paste0("https://d26692udehoye.cloudfront.net/SRAG/2013-2018/INFLUD", 
                                    x,
                                    ".csv")})
+
 
 # percorrendo e baixando dados do vetor de URLS
 dados_SRAG <- urls |>
@@ -44,10 +49,109 @@ dados_SRAG <- dados_SRAG |>
          across(c(CS_GESTANT:OUTRO_SIN, CARDIOPATI:OUT_MORBI), as.character))
 
 
-### Para rodar o app_teste1.R
+
 dados_SRAG <- dados_SRAG |>
-  mutate(across(c(CLASSI_FIN,CRITERIO,EVOLUCAO), troca_NA),
-         across(c(CLASSI_FIN,CRITERIO,EVOLUCAO), as.character))
+  mutate(CS_SEXO = recode_factor(CS_SEXO,
+                                 "F"=" Feminino",
+                                 "M"=" Masculino",
+                                 "I"="9"),
+         
+         CS_GESTANT=recode_factor(CS_GESTANT,
+                                  "1"=" 1° Trimestre",
+                                  "2"=" 2° Trimestre",
+                                  "3"=" 3° Trimestre",
+                                  "4"="9",
+                                  "5"="9",
+                                  "6"="9"),
+         
+         CS_RACA=recode_factor(CS_RACA,
+                                  "1"=" Branca",
+                                  "2"=" Preta",
+                                  "3"=" Amarela",
+                                  "4"=" Parda",
+                                  "5"=" Indígena",
+                                  "9"="9"),
+         
+         CS_ESCOL_N=recode_factor(CS_ESCOL_N,
+                               "0"=" Analfabeto",
+                               "1"=" Fundamental",
+                               "2"=" Média",
+                               "3"=" Superior",
+                               "9"="9",
+                               "10"="9"),
+         
+         VACINA=recode_factor(VACINA,
+                              "1"=" Vacinado",
+                              "2"=" Não Vacinado"),
+         
+         FEBRE=recode_factor(FEBRE,
+                             "1"=" Com Febre",
+                             "2"=" Sem Febre"),
+         
+         TOSSE=recode_factor(TOSSE,
+                             "1"=" Com Febre",
+                             "2"=" Sem Febre"),
+         
+         DISPNEIA=recode_factor(DISPNEIA,
+                             "1"=" Apresentou Dispineia",
+                             "2"=" Não Apresentou Dispineia"),
+         
+         GARGANTA=recode_factor(GARGANTA,
+                                "1"=" Dor de Garganta",
+                                "2"=" Sem dor de Gargante"),
+         
+         MIALGIA=recode_factor(MIALGIA,
+                               "1"=" Dor Muscular",
+                               "2"=" Sem Dor Muscular"),
+         
+         OUTRO_SIN=recode_factor(OUTRO_SIN,
+                                 "1"=" Com Outros Sintomas",
+                                 "2"=" Sem Outros Sintomas"),
+         
+         CARDIOPATI=recode_factor(CARDIOPATI,
+                                  "1"=" Com Cardiopatia Crônica",
+                                  "2"=" Sem Cardiopatia Crônica"),
+         
+         PNEUMOPATI=recode_factor(CARDIOPATI,
+                                  "1"=" Com Pneumopatia Crônica",
+                                  "2"=" Sem Pneumopatia Crônica"),
+         
+         RENAL=recode_factor(RENAL,
+                             "1"=" Com Doença Renal",
+                             "2"=" Sem Doença Renal"),
+         
+         IMUNODEPRE=recode_factor(IMUNODEPRE,
+                             "1"=" Supressão do sistema imunológico",
+                             "2"=" Sistema imunológico normal"),
+         
+         IMUNODEPRE=recode_factor(IMUNODEPRE,
+                                  "1"=" Supressão do sistema imunológico",
+                                  "2"=" Sistema imunológico normal"),
+         
+         METABOLICA=recode_factor(METABOLICA,
+                                  "1"=" Com Doença metabólica",
+                                  "2"=" Sem Doença Metabólica"),
+         
+         OUT_MORBI=recode_factor(OUT_MORBI,
+                                  "1"=" Possui morbidades",
+                                  "2"=" Sem morbidades"))
+
+
+
+### Para rodar o app_teste1.R
+# dados_SRAG <- dados_SRAG |>
+#   mutate(across(c(CLASSI_FIN,CRITERIO,EVOLUCAO), troca_NA),
+#          across(c(CLASSI_FIN,CRITERIO,EVOLUCAO), as.character))
+
+dados_SRAG$Tempo_Surv =chron(dates=dados_SRAG$DT_OBITO,
+                             format = c(dates="d/m/y"))-
+  chron(dates=dados_SRAG$DT_SIN_PRI,
+        format = c(dates="d/m/y"))
+
+
+dados_SRAG$Tempo_Surv =
+  as.numeric(ifelse(dados_SRAG$Tempo_Surv<1 ,NA,
+                    dados_SRAG$Tempo_Surv))
 
 
 # dando join para extrair nome de municipios, UF e mesorregiao

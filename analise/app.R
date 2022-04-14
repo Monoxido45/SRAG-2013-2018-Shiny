@@ -6,6 +6,19 @@ library(brazilmaps)
 library(leaflet)
 library(sf)
 
+if(!require(reactable)){install.packages("reactable")}
+library(reactable)
+if(!require(chron)){install.packages("chron")}
+library(chron)
+if(!require(survival)){install.packages("survival")}
+library(survival)
+if(!require(flexsurv)){install.packages("flexsurv")}
+library(flexsurv)
+if(!require(reactable)){install.packages("reactable")}
+library(reactable)
+
+
+
 dados_SRAG <- "dados_SRAG.rds" |>
   readRDS()
 
@@ -37,7 +50,8 @@ ui <- dashboardPage(
   dashboardSidebar(
     sidebarMenu(
       menuItem("Informações gerais", tabName = "info"),
-      menuItem("Mapa do SRAG", tabName = "map")
+      menuItem("Mapa do SRAG", tabName = "map"),
+      menuItem("Análise de sobrevivência", tabName = "surv")
     )),
   
   dashboardBody(
@@ -79,6 +93,8 @@ ui <- dashboardPage(
           )
         )
       ),
+      
+      
       tabItem(
         tabName = "map",
         h2("Mapa dos casos por ano"),
@@ -135,7 +151,72 @@ ui <- dashboardPage(
         fluidRow(
           leafletOutput("mapa_estado")
         )
+      ),
+      
+      #####
+      # Output do Surv
+      #####
+      
+      tabItem(
+        tabName = "surv",
+        h2("Análise de Sobrevivência"),
+        br(),
+        fluidRow(
+          column(selectInput(inputId = "surv_ano_srag",
+                             label = "Selecione um ou mais anos",
+                             multiple = TRUE,
+                             choices = dados_SRAG |> pull(NU_ANO) |> unique(),
+                             selected = 2013), width = 3),
+          
+          column(selectInput(inputId = "surv_var_srag",
+                             label = "Selecione uma variável",
+                             multiple = FALSE,
+                             choices = dados_SRAG |> 
+                               select(CS_SEXO:OUTRO_SIN,
+                                      CARDIOPATI:OUT_MORBI) |>
+                               names()),width = 3),
+          
+          column(selectInput(inputId = "surv_model_srag",
+                             label = "Selecione uma distribuição",
+                             multiple = FALSE,
+                             choices = c("exponential",
+                                         "weibull",
+                                         "loglogistic")),
+                 width = 3)
+          
+        ),
+        br(),
+        fluidRow(
+          box(
+            width = 4,
+            title = "Kaplan-Meyer",
+            highchartOutput("hc_surv_km")
+          ),
+          box(
+            width = 4,
+            title = "Curva de sobrevivêcia (paramétrica)",
+            highchartOutput("hc_surv_param")
+          ),
+          box(
+            width = 4,
+            title = "Curva de Risco (paramétrica)",
+            highchartOutput("hc_hazard_param")
+          )
+        ),
+        br(),
+        fluidRow(
+          column(12, align="center",
+                 reactableOutput("table_all",width = "80%"),
+                 titlePanel(" "),
+                 reactableOutput("table_coef",width = "50%"))
+          
+        )
       )
+      
+      
+      
+      
+      
     )
   )
 )
@@ -158,6 +239,10 @@ server <- function(input, output, session){
   escolhas_cont_estado <- reactive(input$cont_srag_UF)
 
   
+  ### Sobrevivencia
+  surv_ano <- reactive(input$surv_ano_srag)
+  surv_var <- reactive(input$surv_var_srag)
+  surv_model <- reactive(input$surv_model_srag)
   
 # infobox com informacoes gerais de numerode casos, morte e hospit --------
   output$num_casos <- renderInfoBox({
@@ -517,7 +602,242 @@ server <- function(input, output, session){
                                                         bringToFront = TRUE))
     }
   })
+  
+  
+  
+  #####
+  # Analise de sobrevivencia
+  #####
+  
+  dados_surv <- reactive({
+    
+    dados_surv=
+      dados_SRAG |>
+      filter(NU_ANO %in% surv_ano() ) |>
+      select(EVOLUCAO,Tempo_Surv, !!(sym(surv_var())) ) |>
+      na.omit() |>
+      subset(EVOLUCAO!=9) |>
+      filter(!!(sym(surv_var())) != "9") |>
+      subset(Tempo_Surv>1&Tempo_Surv<800) |>
+      droplevels()  
+    
+    dados_surv[,1] = ifelse(dados_surv[,1]==1,0,1)
+    
+    dados_surv
+    
+  })
+  
+  fit_param <- reactive({
+    
+    survreg(as.formula(paste("Surv(Tempo_Surv,EVOLUCAO) ~ ",paste(surv_var()))), 
+            data=dados_surv(), 
+            dist=surv_model())
+    
+  })
+  
+  
+  dados_surv_hc <- reactive({
+    
+    df_hc = data.frame(Sobrevivencia=double(),
+                       Tempo=double(),
+                       Classe=double())
+    
+    for( i in 1:length(levels(dados_surv()[,3])) ){
+      
+      novos_dados = data.frame("termo"=levels(dados_surv()[,3])[i])
+      names(novos_dados) =  as.character(fit_param()$terms[[3]])
+      
+      Tempo = predict(fit_param(), 
+                      newdata=novos_dados, 
+                      type='quantile',
+                      p=1:98/100)
+      
+      Sobrevivencia = 1-1:98/100
+      
+      Classe = rep(levels(dados_surv()[,3])[i],98)
+      
+      df_hc = rbind(df_hc, 
+                    data.frame(Sobrevivencia,
+                               Tempo,
+                               Classe))
+    }
+    
+    return(df_hc)
+    
+  })
+  
+  
+  dados_hazard_hc <- reactive({
+    
+    df_hc = data.frame(Tempo=double(),
+                       Classe=double(),
+                       Risco=double())
+    
+    for( i in 1:length(levels(dados_surv()[,3])) ){
+      
+      #novos_dados = data.frame("termo"=levels(dados_surv()[,3])[i])
+      #names(novos_dados) =  as.character(fit_param()$terms[[3]])
+      
+      #Tempo = seq(1,600,0.3)
+      
+      Tempo = seq(1,600,0.5)
+      
+      #Sobrevivencia = 1-1:98/100
+      
+      Classe = rep(levels(dados_surv()[,3])[i],1199)
+      
+      if(fit_param()$dist=="exponential"){
+        
+        if(i==1){
+          Risco = hexp(Tempo,rate=exp(-1*fit_param()$coefficients[c(1)]))
+        }else{
+          Risco = hexp(Tempo,rate=exp(-1*sum(fit_param()$coefficients[c(1,i)])))
+        }
+        
+      }
+      
+      if(fit_param()$dist=="weibull"){
+        if(i == 1){
+          Risco =  hweibull(Tempo,
+                            scale=exp(fit_param()$coefficients[c(1)]),
+                            shape=1/fit_param()$scale)
+        }else{
+          Risco =  hweibull(Tempo,
+                            scale=exp(sum(fit_param()$coefficients[c(1,i)])),
+                            shape=1/fit_param()$scale)
+        }
+      }
+      
+      if(fit_param()$dist=="loglogistic"){
+        if(i == 1){
+          Risco =  hllogis(Tempo, 
+                           scale=exp(fit_param()$coefficients[c(1)]), 
+                           shape=1/fit_param()$scale)
+        }else{
+          Risco =  hllogis(Tempo, 
+                           scale=exp(sum(fit_param()$coefficients[c(1,i)]) ), 
+                           shape=1/fit_param()$scale)
+        }
+        
+      }
+      
+      
+      
+      df_hc = rbind(df_hc, 
+                    data.frame(Tempo,
+                               Classe,
+                               Risco))
+    }
+    
+    return(df_hc)
+    
+  })
+  
+  
+  output$hc_surv_km <-renderHighchart({
+    if(length(surv_ano()) != 0){
+      
+      
+      fit = survfit(as.formula(paste("Surv(Tempo_Surv,EVOLUCAO) ~ ",paste(surv_var()))),
+                    data=dados_surv())
+      
+      hchart(fit,ranges=F,rangesOpacity = 0.3,
+             markTimes=F) |>
+        hc_tooltip(pointFormat = '<b>• Sobrevivência:</b> {point.y:,.2f} <br>
+                 <b>• Tempo:</b> {point.x:,.0f}',
+                   headerFormat=" ") |>
+        hc_xAxis(title = list(text="Tempo em dias")) |>
+        hc_yAxis(title = list(text="Sobrevivência (probabilidade)")) |>
+        hc_add_theme(hc_theme_ggplot2()) 
+      
+    }
+  })
+  
+  output$hc_surv_param <-renderHighchart({
+    if(length(surv_ano()) != 0){
+      
+      dados_surv_hc() |>
+        hchart('line', hcaes(x = Tempo, y = Sobrevivencia, group = Classe)) |>
+        hc_tooltip(pointFormat = '<b>• Sobrevivência:</b> {point.y:,.2f} <br>
+                 <b>• Tempo:</b> {point.x:,.0f}',
+                   headerFormat=" ") |>
+        hc_xAxis(title = list(text="Tempo em dias")) |>
+        hc_yAxis(title = list(text="Sobrevivência (probabilidade)")) |>
+        hc_add_theme(hc_theme_ggplot2()) 
+      
+    }
+  })
+  
+  output$hc_hazard_param <-renderHighchart({
+    if(length(surv_ano()) != 0){
+      
+      
+      dados_hazard_hc() %>% 
+        hchart(
+          'line', hcaes(x = Tempo, y = Risco, group = Classe)) |>
+        hc_tooltip(pointFormat = '<b>• Risco:</b> {point.y:,.4f} <br>
+                 <b>• Tempo:</b> {point.x:,.0f}',
+                   headerFormat=" ") |>
+        hc_xAxis(title = list(text="Tempo em dias")) |>
+        hc_yAxis(title = list(text="Risco")) |>
+        hc_add_theme(hc_theme_ggplot2()) 
+      
+    }
+  })
+  
+  output$table_all <- renderReactable({
+    if(length(surv_ano()) != 0){
+      
+      n=  dados_surv() |> nrow()
+      n_censura= sum(dados_surv()[,1] == 1)
+      AIC_mod = AIC(fit_param())
+      BIC_mod = BIC(fit_param())
+      n_iter = summary(fit_param())$iter
+      
+      df_all = data.frame(dados_surv() |> nrow(),
+                          sum(dados_surv()[,1] == 1),
+                          round(AIC(fit_param()),digits=3),
+                          round(BIC(fit_param()),digits=3),
+                          summary(fit_param())$iter)
+      
+      colnames(df_all) = c("Número de Pessoas",
+                           "Número de Mortes (censuras)",
+                           "AIC do modelo",
+                           "BIC do modelo",
+                           "Iterações de Newton-Raphson")
+      
+      reactable(df_all)
+    }
+  })
+  
+  
+  output$table_coef <- renderReactable({
+    if(length(surv_ano()) != 0){
+      
+      df_coef = summary(fit_param())$table[,c(1,2,4)]
+      df_coef[,c(1,2)] = round(df_coef[,c(1,2)],digits=3)
+      df_coef[,3]=format.pval(df_coef[,3],
+                              digits = 2,
+                              eps = 0.001,
+                              nsmall = 3)
+      
+      colnames(df_coef) =
+        c("Estimativa do Coeficiente",
+          "Erro padrão da estimativa",
+          "Valor-p")
+      
+      reactable(df_coef)
+    }
+  })
+  
+  
 }
 
 
 shinyApp(ui, server)
+
+
+
+
+
+
