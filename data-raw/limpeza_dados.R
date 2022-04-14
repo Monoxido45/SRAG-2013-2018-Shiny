@@ -1,6 +1,5 @@
 # importando e ajeitando os dados por aqui e salvando em rds
 library(tidyverse)
-if(!require(chron)){install.packages("chron")}
 library(chron)
 
 #remotes::install_github("abjur/abjData")
@@ -55,7 +54,6 @@ dados_SRAG <- dados_SRAG |>
                                  "F"=" Feminino",
                                  "M"=" Masculino",
                                  "I"="9"),
-         
          CS_GESTANT=recode_factor(CS_GESTANT,
                                   "1"=" 1° Trimestre",
                                   "2"=" 2° Trimestre",
@@ -143,15 +141,13 @@ dados_SRAG <- dados_SRAG |>
 #   mutate(across(c(CLASSI_FIN,CRITERIO,EVOLUCAO), troca_NA),
 #          across(c(CLASSI_FIN,CRITERIO,EVOLUCAO), as.character))
 
-dados_SRAG$Tempo_Surv =chron(dates=dados_SRAG$DT_OBITO,
-                             format = c(dates="d/m/y"))-
-  chron(dates=dados_SRAG$DT_SIN_PRI,
-        format = c(dates="d/m/y"))
-
-
-dados_SRAG$Tempo_Surv =
-  as.numeric(ifelse(dados_SRAG$Tempo_Surv<1 ,NA,
-                    dados_SRAG$Tempo_Surv))
+dados_SRAG <- dados_SRAG |>
+  mutate(Tempo_Surv = chron(dates=DT_OBITO,
+                             format = c(dates="d/m/y")) -
+  chron(dates=DT_SIN_PRI,
+        format = c(dates="d/m/y")), 
+  Tempo_Surv = as.numeric(ifelse(Tempo_Surv<1 ,NA,
+                                 Tempo_Surv)))
 
 
 # dando join para extrair nome de municipios, UF e mesorregiao

@@ -5,18 +5,10 @@ library(highcharter)
 library(brazilmaps)
 library(leaflet)
 library(sf)
-
-if(!require(reactable)){install.packages("reactable")}
 library(reactable)
-if(!require(chron)){install.packages("chron")}
 library(chron)
-if(!require(survival)){install.packages("survival")}
 library(survival)
-if(!require(flexsurv)){install.packages("flexsurv")}
 library(flexsurv)
-if(!require(reactable)){install.packages("reactable")}
-library(reactable)
-
 
 
 dados_SRAG <- "dados_SRAG.rds" |>
@@ -284,6 +276,8 @@ server <- function(input, output, session){
     # definindo cores
     dados_SRAG |> 
       filter(NU_ANO %in% ano()) |>
+      mutate(!!as.symbol(var()) := recode_factor(!!as.symbol(var()),
+                                        "9" = "Ignorado")) |>
       count(!!sym(var())) |> 
       mutate(p = n/sum(n),
              p = scales::percent(p)) |>
@@ -293,7 +287,7 @@ server <- function(input, output, session){
                labels = list(format = "{value}")) |>
       hc_xAxis(alignTicks = TRUE) |>
       hc_tooltip(pointFormat = '<b>Frequência:</b> {point.y} <br>
-                 <b> Porcentagem:</b> {point.p:,.2f}%') |>
+                 <b> Porcentagem:</b> {point.p:,.2f}') |>
       hc_add_theme(hc_theme_ggplot2())
     }
   })
@@ -471,7 +465,7 @@ server <- function(input, output, session){
         fillOpacity = 0.6,
         popup = ~paste0(sep = " ",
                         "<b>Cidade: </b>", nome_muni, "<br>",
-                        "<b>", nome_var, ":</b>", n, "<br>",
+                        "<b>", nome_var, ": </b>", n, "<br>",
                         "<b>", nome_var, " por 100k habitantes: </b>", 
                         n_100k),
         label = ~nome_muni,
@@ -487,7 +481,7 @@ server <- function(input, output, session){
                                                       bringToFront = FALSE),
                   popup = ~paste0(sep = " ",
                                   "<b>", nome_reg, ": </b>", nome, "<br>",
-                                  "<b>", nome_var, ":</b>", n, "<br>",
+                                  "<b>", nome_var, ": </b>", n, "<br>",
                                   "<b>", nome_var, " por 100k habitantes: </b>", 
                                   n_100k),
                   label = ~ nome) %>%
@@ -611,8 +605,7 @@ server <- function(input, output, session){
   
   dados_surv <- reactive({
     
-    dados_surv=
-      dados_SRAG |>
+    dados_surv <- dados_SRAG |>
       filter(NU_ANO %in% surv_ano() ) |>
       select(EVOLUCAO,Tempo_Surv, !!(sym(surv_var())) ) |>
       na.omit() |>
@@ -621,10 +614,9 @@ server <- function(input, output, session){
       subset(Tempo_Surv>1&Tempo_Surv<800) |>
       droplevels()  
     
-    dados_surv[,1] = ifelse(dados_surv[,1]==1,0,1)
+    dados_surv[,1] <- ifelse(dados_surv[,1]==1,0,1)
     
     dados_surv
-    
   })
   
   fit_param <- reactive({
@@ -638,25 +630,25 @@ server <- function(input, output, session){
   
   dados_surv_hc <- reactive({
     
-    df_hc = data.frame(Sobrevivencia=double(),
+    df_hc <- data.frame(Sobrevivencia=double(),
                        Tempo=double(),
                        Classe=double())
     
-    for( i in 1:length(levels(dados_surv()[,3])) ){
+    for(i in 1:length(levels(dados_surv()[,3]))){
       
-      novos_dados = data.frame("termo"=levels(dados_surv()[,3])[i])
-      names(novos_dados) =  as.character(fit_param()$terms[[3]])
+      novos_dados <- data.frame("termo"=levels(dados_surv()[,3])[i])
+      names(novos_dados) <- as.character(fit_param()$terms[[3]])
       
-      Tempo = predict(fit_param(), 
+      Tempo <-  predict(fit_param(), 
                       newdata=novos_dados, 
                       type='quantile',
                       p=1:98/100)
       
-      Sobrevivencia = 1-1:98/100
+      Sobrevivencia <-  1 - 1:98/100
       
-      Classe = rep(levels(dados_surv()[,3])[i],98)
+      Classe <- rep(levels(dados_surv()[,3])[i],98)
       
-      df_hc = rbind(df_hc, 
+      df_hc <- rbind(df_hc, 
                     data.frame(Sobrevivencia,
                                Tempo,
                                Classe))
@@ -669,7 +661,7 @@ server <- function(input, output, session){
   
   dados_hazard_hc <- reactive({
     
-    df_hc = data.frame(Tempo=double(),
+    df_hc <- data.frame(Tempo=double(),
                        Classe=double(),
                        Risco=double())
     
@@ -680,29 +672,29 @@ server <- function(input, output, session){
       
       #Tempo = seq(1,600,0.3)
       
-      Tempo = seq(1,600,0.5)
+      Tempo <-  seq(1,600,0.5)
       
       #Sobrevivencia = 1-1:98/100
       
-      Classe = rep(levels(dados_surv()[,3])[i],1199)
+      Classe <- rep(levels(dados_surv()[,3])[i],1199)
       
       if(fit_param()$dist=="exponential"){
         
         if(i==1){
-          Risco = hexp(Tempo,rate=exp(-1*fit_param()$coefficients[c(1)]))
+          Risco <- hexp(Tempo,rate=exp(-1*fit_param()$coefficients[c(1)]))
         }else{
-          Risco = hexp(Tempo,rate=exp(-1*sum(fit_param()$coefficients[c(1,i)])))
+          Risco <- hexp(Tempo,rate=exp(-1*sum(fit_param()$coefficients[c(1,i)])))
         }
         
       }
       
       if(fit_param()$dist=="weibull"){
         if(i == 1){
-          Risco =  hweibull(Tempo,
+          Risco <- hweibull(Tempo,
                             scale=exp(fit_param()$coefficients[c(1)]),
                             shape=1/fit_param()$scale)
         }else{
-          Risco =  hweibull(Tempo,
+          Risco <- hweibull(Tempo,
                             scale=exp(sum(fit_param()$coefficients[c(1,i)])),
                             shape=1/fit_param()$scale)
         }
@@ -710,11 +702,11 @@ server <- function(input, output, session){
       
       if(fit_param()$dist=="loglogistic"){
         if(i == 1){
-          Risco =  hllogis(Tempo, 
+          Risco <- hllogis(Tempo, 
                            scale=exp(fit_param()$coefficients[c(1)]), 
                            shape=1/fit_param()$scale)
         }else{
-          Risco =  hllogis(Tempo, 
+          Risco <- hllogis(Tempo, 
                            scale=exp(sum(fit_param()$coefficients[c(1,i)]) ), 
                            shape=1/fit_param()$scale)
         }
@@ -723,7 +715,7 @@ server <- function(input, output, session){
       
       
       
-      df_hc = rbind(df_hc, 
+      df_hc <- rbind(df_hc, 
                     data.frame(Tempo,
                                Classe,
                                Risco))
@@ -738,10 +730,12 @@ server <- function(input, output, session){
     if(length(surv_ano()) != 0){
       
       
-      fit = survfit(as.formula(paste("Surv(Tempo_Surv,EVOLUCAO) ~ ",paste(surv_var()))),
+      fit <- survfit(as.formula(paste("Surv(Tempo_Surv,EVOLUCAO) ~ ",paste(surv_var()))),
                     data=dados_surv())
       
-      hchart(fit,ranges=F,rangesOpacity = 0.3,
+      fit |>
+      hchart(ranges=F,
+             rangesOpacity = 0.3,
              markTimes=F) |>
         hc_tooltip(pointFormat = '<b>• Sobrevivência:</b> {point.y:,.2f} <br>
                  <b>• Tempo:</b> {point.x:,.0f}',
@@ -771,7 +765,6 @@ server <- function(input, output, session){
   output$hc_hazard_param <-renderHighchart({
     if(length(surv_ano()) != 0){
       
-      
       dados_hazard_hc() %>% 
         hchart(
           'line', hcaes(x = Tempo, y = Risco, group = Classe)) |>
@@ -788,19 +781,13 @@ server <- function(input, output, session){
   output$table_all <- renderReactable({
     if(length(surv_ano()) != 0){
       
-      n=  dados_surv() |> nrow()
-      n_censura= sum(dados_surv()[,1] == 1)
-      AIC_mod = AIC(fit_param())
-      BIC_mod = BIC(fit_param())
-      n_iter = summary(fit_param())$iter
-      
-      df_all = data.frame(dados_surv() |> nrow(),
+      df_all <- data.frame(dados_surv() |> nrow(),
                           sum(dados_surv()[,1] == 1),
                           round(AIC(fit_param()),digits=3),
                           round(BIC(fit_param()),digits=3),
                           summary(fit_param())$iter)
       
-      colnames(df_all) = c("Número de Pessoas",
+      colnames(df_all) <- c("Número de Pessoas",
                            "Número de Mortes (censuras)",
                            "AIC do modelo",
                            "BIC do modelo",
@@ -814,14 +801,14 @@ server <- function(input, output, session){
   output$table_coef <- renderReactable({
     if(length(surv_ano()) != 0){
       
-      df_coef = summary(fit_param())$table[,c(1,2,4)]
-      df_coef[,c(1,2)] = round(df_coef[,c(1,2)],digits=3)
-      df_coef[,3]=format.pval(df_coef[,3],
+      df_coef <- summary(fit_param())$table[,c(1,2,4)]
+      df_coef[,c(1,2)] <- round(df_coef[,c(1,2)],digits=3)
+      df_coef[,3] <- format.pval(df_coef[,3],
                               digits = 2,
                               eps = 0.001,
                               nsmall = 3)
       
-      colnames(df_coef) =
+      colnames(df_coef) <- 
         c("Estimativa do Coeficiente",
           "Erro padrão da estimativa",
           "Valor-p")
