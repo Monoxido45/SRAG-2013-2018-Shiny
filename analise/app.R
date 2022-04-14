@@ -61,8 +61,9 @@ ui <- dashboardPage(
         column(selectInput(inputId = "var_srag",
                       label = "Selecione uma variável",
                       multiple = FALSE,
-                      choices = dados_SRAG |> select(CS_SEXO:OUTRO_SIN,
-                                                     CARDIOPATI:OUT_MORBI) |>
+                      choices = dados_SRAG |> 
+                        select(CS_GESTANT:OUTRO_SIN, CARDIOPATI:OUT_MORBI,
+                               UTI,ANTIVIRAL,HOSPITAL,SUPORT_VEN) |>
                         names()), width = 6)
         ),
         br(),
@@ -164,8 +165,8 @@ ui <- dashboardPage(
                              label = "Selecione uma variável",
                              multiple = FALSE,
                              choices = dados_SRAG |> 
-                               select(CS_SEXO:OUTRO_SIN,
-                                      CARDIOPATI:OUT_MORBI) |>
+                               select(CS_GESTANT:OUTRO_SIN, CARDIOPATI:OUT_MORBI,
+                                      UTI,ANTIVIRAL,HOSPITAL,SUPORT_VEN) |>
                                names()),width = 3),
           
           column(selectInput(inputId = "surv_model_srag",

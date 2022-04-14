@@ -44,16 +44,17 @@ troca_NA <- function(doenca){
 }
 
 dados_SRAG <- dados_SRAG |>
-  mutate(across(c(CS_GESTANT:OUTRO_SIN, CARDIOPATI:OUT_MORBI), troca_NA),
-         across(c(CS_GESTANT:OUTRO_SIN, CARDIOPATI:OUT_MORBI), as.character))
-
-
+  mutate(across(c(CS_GESTANT:OUTRO_SIN, CARDIOPATI:OUT_MORBI,
+                  UTI,ANTIVIRAL,HOSPITAL,SUPORT_VEN), troca_NA),
+         across(c(CS_GESTANT:OUTRO_SIN, CARDIOPATI:OUT_MORBI,
+                  UTI,ANTIVIRAL,HOSPITAL,SUPORT_VEN), as.character))
 
 dados_SRAG <- dados_SRAG |>
   mutate(CS_SEXO = recode_factor(CS_SEXO,
                                  "F"=" Feminino",
                                  "M"=" Masculino",
                                  "I"="9"),
+         
          CS_GESTANT=recode_factor(CS_GESTANT,
                                   "1"=" 1° Trimestre",
                                   "2"=" 2° Trimestre",
@@ -63,20 +64,20 @@ dados_SRAG <- dados_SRAG |>
                                   "6"="9"),
          
          CS_RACA=recode_factor(CS_RACA,
-                                  "1"=" Branca",
-                                  "2"=" Preta",
-                                  "3"=" Amarela",
-                                  "4"=" Parda",
-                                  "5"=" Indígena",
-                                  "9"="9"),
+                               "1"=" Branca",
+                               "2"=" Preta",
+                               "3"=" Amarela",
+                               "4"=" Parda",
+                               "5"=" Indígena",
+                               "9"="9"),
          
          CS_ESCOL_N=recode_factor(CS_ESCOL_N,
-                               "0"=" Analfabeto",
-                               "1"=" Fundamental",
-                               "2"=" Média",
-                               "3"=" Superior",
-                               "9"="9",
-                               "10"="9"),
+                                  "0"=" Analfabeto",
+                                  "1"=" Fundamental",
+                                  "2"=" Média",
+                                  "3"=" Superior",
+                                  "9"="9",
+                                  "10"="9"),
          
          VACINA=recode_factor(VACINA,
                               "1"=" Vacinado",
@@ -87,12 +88,12 @@ dados_SRAG <- dados_SRAG |>
                              "2"=" Sem Febre"),
          
          TOSSE=recode_factor(TOSSE,
-                             "1"=" Com Febre",
-                             "2"=" Sem Febre"),
+                             "1"=" Com Tosse",
+                             "2"=" Sem Tosse"),
          
          DISPNEIA=recode_factor(DISPNEIA,
-                             "1"=" Apresentou Dispineia",
-                             "2"=" Não Apresentou Dispineia"),
+                                "1"=" Apresentou Dispineia",
+                                "2"=" Não Apresentou Dispineia"),
          
          GARGANTA=recode_factor(GARGANTA,
                                 "1"=" Dor de Garganta",
@@ -110,17 +111,13 @@ dados_SRAG <- dados_SRAG |>
                                   "1"=" Com Cardiopatia Crônica",
                                   "2"=" Sem Cardiopatia Crônica"),
          
-         PNEUMOPATI=recode_factor(CARDIOPATI,
+         PNEUMOPATI=recode_factor(PNEUMOPATI,
                                   "1"=" Com Pneumopatia Crônica",
                                   "2"=" Sem Pneumopatia Crônica"),
          
          RENAL=recode_factor(RENAL,
                              "1"=" Com Doença Renal",
                              "2"=" Sem Doença Renal"),
-         
-         IMUNODEPRE=recode_factor(IMUNODEPRE,
-                             "1"=" Supressão do sistema imunológico",
-                             "2"=" Sistema imunológico normal"),
          
          IMUNODEPRE=recode_factor(IMUNODEPRE,
                                   "1"=" Supressão do sistema imunológico",
@@ -131,8 +128,27 @@ dados_SRAG <- dados_SRAG |>
                                   "2"=" Sem Doença Metabólica"),
          
          OUT_MORBI=recode_factor(OUT_MORBI,
-                                  "1"=" Possui morbidades",
-                                  "2"=" Sem morbidades"))
+                                 "1"=" Possui morbidades",
+                                 "2"=" Sem morbidades"),
+         
+         UTI=recode_factor(UTI,
+                           "1"=" Internado em UTI",
+                           "2"=" Não Internado em UTI"),
+         
+         ANTIVIRAL=recode_factor(ANTIVIRAL,
+                                 "1"=" Não usou",
+                                 "2"=" Usou Oseltamivir",
+                                 "3"=" Usou Zanamivir",
+                                 "4"="9"),
+         
+         HOSPITAL=recode_factor(HOSPITAL,
+                                "1"=" Paciente Hospitalizado",
+                                "2"=" Não Hospitalizado"),
+         
+         SUPORT_VEN=recode_factor(SUPORT_VEN,
+                                  "1"=" Não usou",
+                                  "2"=" Usou (invasivo)",
+                                  "3"=" Usou (não invasivo)"))
 
 
 
