@@ -261,8 +261,10 @@ server <- function(input, output, session){
     ) 
   })
   output$num_hospit <- renderInfoBox({
+    
     numero_de_hospit <- dados_SRAG |> mutate(DT_INTERNA = DT_INTERNA |> lubridate::dmy()) |>
-      filter(NU_ANO %in% ano() & HOSPITAL == 1 & lubridate::year(DT_INTERNA) %in% ano())|> 
+      filter(NU_ANO %in% ano() & HOSPITAL == " Paciente Hospitalizado"
+             & lubridate::year(DT_INTERNA) %in% ano())|> 
       nrow()
     infoBox(
       title = "Número de Hospitalizações",
