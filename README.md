@@ -22,9 +22,9 @@ O aplicativo pode ser encontrado por meio do link: https://vinicius-hideki.shiny
 
 ### Projeto.Rproj
 
-Usado para abrir o projeto no RStudio localmente.
+  - Usado para abrir o projeto no RStudio localmente.
 
 ### .gitignore 
 
-Aponta os arquivos criados pelo código na pasta data-raw
+  - Aponta os arquivos criados pelo código na pasta data-raw
 
